@@ -216,6 +216,100 @@ def swag_jsonapi_requests(request, swag_config, swag_schemas, swag_client):
     collector.collect(op)
 
 
+@pytest.fixture
+def swag_httpx(request, swag_config, swag_schemas, swag_client):
+    from pytest_swag.adapters.httpx import HttpxSwagBuilder
+
+    builder = HttpxSwagBuilder()
+    builder.validate = _make_validate(builder, swag_schemas)
+
+    # Inject client
+    if swag_client is not None:
+        builder._client = swag_client
+    else:
+        try:
+            import httpx as _httpx_lib
+
+            builder._client = _httpx_lib
+        except ImportError:
+            pass
+
+    # Inject base URL from config
+    raw_config = swag_config if isinstance(swag_config, dict) else {}
+    servers = raw_config.get("servers", [])
+    if servers:
+        builder._base_url = servers[0].get("url", "")
+
+    original_validate_response = builder.validate_response
+
+    def _validate_response(response, *, component_schemas=None):
+        original_validate_response(response, component_schemas=component_schemas or swag_schemas)
+
+    builder.validate_response = _validate_response
+    yield builder
+    if not builder._validated:
+        if request.config.getoption("--swag-strict", default=False):
+            import warnings
+
+            warnings.warn(
+                f"Test {request.node.nodeid} uses swag_httpx fixture but never called validate_response()",
+                stacklevel=2,
+            )
+        return
+    op = builder.to_operation_dict()
+    if builder._doc_target is not None:
+        op["doc_target"] = builder._doc_target
+    collector = request.config.stash[_swag_collector_key]
+    collector.collect(op)
+
+
+@pytest.fixture
+def swag_jsonapi_httpx(request, swag_config, swag_schemas, swag_client):
+    from pytest_swag.adapters.jsonapi.httpx import JsonApiHttpxSwagBuilder
+
+    builder = JsonApiHttpxSwagBuilder()
+    builder.validate = _make_validate(builder, swag_schemas)
+
+    # Inject client
+    if swag_client is not None:
+        builder._client = swag_client
+    else:
+        try:
+            import httpx as _httpx_lib
+
+            builder._client = _httpx_lib
+        except ImportError:
+            pass
+
+    # Inject base URL from config
+    raw_config = swag_config if isinstance(swag_config, dict) else {}
+    servers = raw_config.get("servers", [])
+    if servers:
+        builder._base_url = servers[0].get("url", "")
+
+    original_validate_response = builder.validate_response
+
+    def _validate_response(response, *, component_schemas=None):
+        original_validate_response(response, component_schemas=component_schemas or swag_schemas)
+
+    builder.validate_response = _validate_response
+    yield builder
+    if not builder._validated:
+        if request.config.getoption("--swag-strict", default=False):
+            import warnings
+
+            warnings.warn(
+                f"Test {request.node.nodeid} uses swag_jsonapi_httpx fixture but never called validate_response()",
+                stacklevel=2,
+            )
+        return
+    op = builder.to_operation_dict()
+    if builder._doc_target is not None:
+        op["doc_target"] = builder._doc_target
+    collector = request.config.stash[_swag_collector_key]
+    collector.collect(op)
+
+
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     config = session.config
     if not config.getoption("--swag", default=False):
