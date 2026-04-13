@@ -57,6 +57,12 @@ def _swag_store_config(request, swag_config, swag_schemas, swag_security_schemes
 
 def _make_validate(builder: SwagBuilder, component_schemas: dict):
     def validate(status_code: int, body: object = None) -> None:
+        if builder._captured:
+            from pytest_swag.builder import SwagBuildError
+
+            raise SwagBuildError(
+                "Cannot mix capture() and validate() in the same test"
+            )
         validator = SwagValidator(
             responses=builder._responses,
             path=builder._path,

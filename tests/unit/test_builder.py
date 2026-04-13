@@ -220,3 +220,13 @@ class TestCapture:
         b.capture(404, {"message": "Not found"})
         assert 200 in b._responses
         assert 404 in b._responses
+
+    def test_validate_after_capture_raises(self):
+        from pytest_swag.plugin import _make_validate
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.response(200, schema={"type": "object"})
+        b.capture(200, {"id": 1})
+        validate_fn = _make_validate(b, {})
+        with pytest.raises(SwagBuildError, match="Cannot mix capture"):
+            validate_fn(200, {"id": 1})
