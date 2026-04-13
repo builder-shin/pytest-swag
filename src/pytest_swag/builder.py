@@ -166,10 +166,15 @@ class SwagBuilder:
         responses: dict[int, dict] = {}
         for code, resp in self._responses.items():
             entry: dict = {"description": resp["description"]}
-            if resp["schema"] is not None:
-                entry["content"] = {
-                    "application/json": {"schema": resp["schema"]},
-                }
+            has_schema = resp.get("schema") is not None
+            has_example = resp.get("example") is not None
+            if has_schema or has_example:
+                media: dict = {}
+                if has_schema:
+                    media["schema"] = resp["schema"]
+                if has_example:
+                    media["example"] = resp["example"]
+                entry["content"] = {"application/json": media}
             responses[code] = entry
         op["responses"] = responses
         if self._security is not None:

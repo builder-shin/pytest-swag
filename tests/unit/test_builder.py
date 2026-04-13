@@ -157,6 +157,37 @@ class TestToOperationDict:
         assert 201 in op["responses"]
         assert op["security"] == [{"BearerAuth": []}]
 
+    def test_operation_with_capture_includes_example(self):
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.capture(200, [{"id": 1, "title": "Hello"}])
+
+        op = b.to_operation_dict()
+        resp_200 = op["responses"][200]
+        content = resp_200["content"]["application/json"]
+        assert "schema" in content
+        assert content["example"] == [{"id": 1, "title": "Hello"}]
+
+    def test_operation_with_capture_no_schema(self):
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.capture(200, {"id": 1}, infer_schema=False)
+
+        op = b.to_operation_dict()
+        resp_200 = op["responses"][200]
+        content = resp_200["content"]["application/json"]
+        assert "schema" not in content
+        assert content["example"] == {"id": 1}
+
+    def test_operation_with_capture_none_body(self):
+        b = SwagBuilder()
+        b.path("/blogs/{id}").delete("Delete blog")
+        b.capture(204, None)
+
+        op = b.to_operation_dict()
+        resp_204 = op["responses"][204]
+        assert "content" not in resp_204
+
 
 class TestCapture:
     def test_capture_stores_response_with_inferred_schema(self):
