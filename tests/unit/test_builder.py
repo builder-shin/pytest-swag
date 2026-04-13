@@ -254,6 +254,7 @@ class TestCapture:
 
     def test_validate_after_capture_raises(self):
         from pytest_swag.plugin import _make_validate
+
         b = SwagBuilder()
         b.path("/blogs").get("List blogs")
         b.response(200, schema={"type": "object"})

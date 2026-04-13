@@ -116,9 +116,7 @@ class SwagBuilder:
         infer_schema: bool = True,
     ) -> SwagBuilder:
         if self._validated and not self._captured:
-            raise SwagBuildError(
-                "Cannot mix capture() and validate() in the same test"
-            )
+            raise SwagBuildError("Cannot mix capture() and validate() in the same test")
         if description is None:
             try:
                 description = HTTPStatus(status_code).phrase
