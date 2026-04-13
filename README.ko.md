@@ -1,34 +1,34 @@
 # pytest-swag
 
-Generate OpenAPI documentation from pytest tests.
+pytest 테스트에서 OpenAPI 문서를 자동 생성합니다.
 
-pytest-swag is a **framework-agnostic** pytest plugin that turns your existing API tests into living OpenAPI 3.0/3.1 documentation. Define your API spec inline with a fluent builder DSL, validate responses against it with jsonschema, and produce a complete OpenAPI document at the end of your test session.
-
----
-
-**English | [한국어](README.ko.md)**
+pytest-swag는 pytest 테스트 코드에서 OpenAPI 문서를 자동 생성하는 **프레임워크 비의존** pytest 플러그인입니다. 빌더 DSL로 API 스펙을 정의하고, jsonschema로 응답을 검증한 뒤, 테스트 세션 종료 시 완전한 OpenAPI 문서를 출력합니다.
 
 ---
 
-### Installation
+**[English](README.md) | 한국어**
+
+---
+
+### 설치
 
 ```bash
 pip install pytest-swag
 ```
 
-Optional extras:
+선택적 추가 패키지:
 
 ```bash
-pip install pytest-swag[yaml]       # YAML output support
-pip install pytest-swag[requests]   # requests library adapter
-pip install pytest-swag[dev]        # Development dependencies
+pip install pytest-swag[yaml]       # YAML 출력 지원
+pip install pytest-swag[requests]   # requests 라이브러리 어댑터
+pip install pytest-swag[dev]        # 개발 의존성
 ```
 
-### Quick Start
+### 빠른 시작
 
 ```python
 def test_get_blog(swag):
-    swag.path("/blogs/{id}").get("Retrieves a blog")
+    swag.path("/blogs/{id}").get("블로그 조회")
     swag.parameter("id", in_="path", schema={"type": "string"})
     swag.response(200, schema={
         "type": "object",
@@ -39,39 +39,39 @@ def test_get_blog(swag):
     swag.validate(response.status_code, response.json())
 ```
 
-Run your tests with the `--swag` flag:
+`--swag` 플래그와 함께 테스트를 실행하세요:
 
 ```bash
 pytest --swag
 ```
 
-This generates an `openapi.json` file containing your full API specification.
+전체 API 스펙이 담긴 `openapi.json` 파일이 생성됩니다.
 
-### How It Works
+### 동작 원리
 
-1. **Define** your API spec using the `swag` fixture's builder DSL
-2. **Validate** each response against the declared schema (jsonschema)
-3. **Collect** all validated operations across your test suite
-4. **Generate** a complete OpenAPI document at session end
+1. `swag` fixture의 빌더 DSL로 API 스펙을 **정의**
+2. 각 응답을 선언된 스키마에 대해 jsonschema로 **검증**
+3. 테스트 스위트 전체에서 검증된 operation을 **수집**
+4. 세션 종료 시 완전한 OpenAPI 문서를 **생성**
 
-Only tests that pass validation are included in the output. Failed tests are automatically excluded, keeping your documentation accurate.
+검증에 통과한 테스트만 출력에 포함됩니다. 실패한 테스트는 자동으로 제외되어 문서의 정확성을 보장합니다.
 
-### Configuration
+### 설정
 
-#### Via `pyproject.toml`
+#### `pyproject.toml`로 설정
 
 ```toml
 [tool.pytest-swag]
 openapi = "3.1.0"
 output_path = "docs/openapi.json"
-output_format = "json"   # "json", "yaml", or "both"
+output_format = "json"   # "json", "yaml", 또는 "both"
 
 [tool.pytest-swag.info]
 title = "My API"
 version = "1.0.0"
 ```
 
-#### Via `conftest.py` fixture
+#### `conftest.py` fixture로 설정
 
 ```python
 import pytest
@@ -88,32 +88,32 @@ def swag_config():
     }
 ```
 
-### Builder DSL Reference
+### 빌더 DSL 레퍼런스
 
-#### Path & HTTP Methods
+#### 경로 및 HTTP 메서드
 
 ```python
-swag.path("/users").get("List users")
-swag.path("/users").post("Create user")
-swag.path("/users/{id}").put("Update user")
-swag.path("/users/{id}").patch("Partial update")
-swag.path("/users/{id}").delete("Delete user")
+swag.path("/users").get("사용자 목록")
+swag.path("/users").post("사용자 생성")
+swag.path("/users/{id}").put("사용자 수정")
+swag.path("/users/{id}").patch("사용자 부분 수정")
+swag.path("/users/{id}").delete("사용자 삭제")
 ```
 
-#### Parameters
+#### 파라미터
 
 ```python
-# Path parameter (always required)
+# 경로 파라미터 (항상 필수)
 swag.parameter("id", in_="path", schema={"type": "integer"})
 
-# Query parameter (optional by default)
+# 쿼리 파라미터 (기본: 선택)
 swag.parameter("page", in_="query", schema={"type": "integer"})
 
-# Required header
+# 필수 헤더
 swag.parameter("X-Api-Key", in_="header", schema={"type": "string"}, required=True)
 ```
 
-#### Request Body
+#### 요청 본문
 
 ```python
 swag.request_body(
@@ -129,43 +129,43 @@ swag.request_body(
 )
 ```
 
-#### Responses
+#### 응답
 
 ```python
-# With schema
+# 스키마 포함
 swag.response(200, description="OK", schema={
     "type": "object",
     "properties": {"id": {"type": "integer"}},
 })
 
-# Without schema (e.g. 204 No Content)
-swag.response(204, description="Deleted")
+# 스키마 없음 (예: 204 No Content)
+swag.response(204, description="삭제됨")
 
-# With $ref (requires swag_schemas fixture)
+# $ref 참조 (swag_schemas fixture 필요)
 swag.response(200, schema={"$ref": "#/components/schemas/User"})
 ```
 
-#### Tags & Security
+#### 태그 및 보안
 
 ```python
 swag.tag("Users")
 swag.security("BearerAuth")
 ```
 
-#### Validation
+#### 검증
 
 ```python
-# Manual validation
+# 수동 검증
 swag.validate(response.status_code, response.json())
 
-# Validates:
-# 1. Status code is documented
-# 2. Response body matches the declared schema (via jsonschema)
+# 다음을 검증합니다:
+# 1. 상태 코드가 문서화되어 있는지
+# 2. 응답 본문이 선언된 스키마와 일치하는지 (jsonschema)
 ```
 
-### Component Schemas (`$ref` Support)
+### 컴포넌트 스키마 (`$ref` 지원)
 
-Define reusable schemas via the `swag_schemas` fixture:
+`swag_schemas` fixture로 재사용 가능한 스키마를 정의합니다:
 
 ```python
 @pytest.fixture(scope="session")
@@ -189,11 +189,11 @@ def swag_schemas():
     }
 ```
 
-Then reference them in your tests:
+테스트에서 참조:
 
 ```python
 def test_get_user(swag):
-    swag.path("/users/{id}").get("Get user")
+    swag.path("/users/{id}").get("사용자 조회")
     swag.parameter("id", in_="path", schema={"type": "integer"})
     swag.response(200, schema={"$ref": "#/components/schemas/User"})
     swag.response(404, schema={"$ref": "#/components/schemas/Error"})
@@ -202,9 +202,9 @@ def test_get_user(swag):
     swag.validate(response.status_code, response.json())
 ```
 
-The `$ref` references are recursively resolved during validation and preserved as-is in the generated OpenAPI document.
+`$ref` 참조는 검증 시 재귀적으로 resolve되며, 생성된 OpenAPI 문서에는 원본 그대로 보존됩니다.
 
-### Security Schemes
+### 보안 스킴
 
 ```python
 @pytest.fixture(scope="session")
@@ -223,13 +223,13 @@ def swag_security_schemes():
     }
 ```
 
-### Requests Adapter
+### Requests 어댑터
 
-For projects using the `requests` library, use the `swag_requests` fixture for automatic response extraction:
+`requests` 라이브러리를 사용하는 프로젝트에서는 `swag_requests` fixture로 응답을 자동 추출할 수 있습니다:
 
 ```python
 def test_list_users(swag_requests):
-    swag_requests.path("/users").get("List users")
+    swag_requests.path("/users").get("사용자 목록")
     swag_requests.response(200, schema={
         "type": "array",
         "items": {"$ref": "#/components/schemas/User"},
@@ -237,12 +237,12 @@ def test_list_users(swag_requests):
 
     response = requests.get("http://localhost:8000/users")
     swag_requests.validate_response(response)
-    # Automatically extracts status_code and JSON body from the response object
+    # response 객체에서 status_code와 JSON 본문을 자동으로 추출합니다
 ```
 
-### Multi-Document Output
+### 멀티 문서 출력
 
-Generate multiple OpenAPI documents from a single test suite using `swag.doc()`:
+`swag.doc()`을 사용하여 하나의 테스트 스위트에서 여러 OpenAPI 문서를 생성할 수 있습니다:
 
 ```python
 @pytest.fixture(scope="session")
@@ -254,28 +254,28 @@ def swag_config():
 
 def test_public_endpoint(swag):
     swag.doc("Public API")
-    swag.path("/posts").get("List posts")
+    swag.path("/posts").get("게시물 목록")
     swag.response(200, schema={"type": "array"})
     swag.validate(200, [])
 
 def test_admin_endpoint(swag):
     swag.doc("Admin API")
-    swag.path("/admin/users").get("List all users")
+    swag.path("/admin/users").get("전체 사용자 목록")
     swag.response(200, schema={"type": "array"})
     swag.validate(200, [])
 ```
 
-### CLI Options
+### CLI 옵션
 
-| Option | Description |
-|--------|-------------|
-| `--swag` | Enable OpenAPI document generation |
-| `--swag-output PATH` | Override the output file path |
-| `--swag-dry-run` | Print the OpenAPI document to stdout instead of writing a file |
-| `--swag-no-output` | Run validation only, skip file generation |
-| `--swag-strict` | Warn when a test uses the `swag` fixture but never calls `validate()` |
+| 옵션 | 설명 |
+|------|------|
+| `--swag` | OpenAPI 문서 생성 활성화 |
+| `--swag-output PATH` | 출력 파일 경로 덮어쓰기 |
+| `--swag-dry-run` | 파일 대신 stdout으로 OpenAPI 문서 출력 |
+| `--swag-no-output` | 검증만 수행, 파일 생성 건너뛰기 |
+| `--swag-strict` | `swag` fixture를 사용하지만 `validate()`를 호출하지 않은 테스트에 대해 경고 |
 
-### Full Example
+### 전체 예제
 
 ```python
 # conftest.py
@@ -316,7 +316,7 @@ def swag_security_schemes():
 ```python
 # test_blogs.py
 def test_list_blogs(swag):
-    swag.path("/blogs").get("List all blogs")
+    swag.path("/blogs").get("블로그 목록")
     swag.tag("Blogs")
     swag.parameter("page", in_="query", schema={"type": "integer"})
     swag.response(200, schema={
@@ -328,7 +328,7 @@ def test_list_blogs(swag):
     swag.validate(response.status_code, response.json())
 
 def test_create_blog(swag):
-    swag.path("/blogs").post("Create a blog")
+    swag.path("/blogs").post("블로그 생성")
     swag.tag("Blogs")
     swag.security("BearerAuth")
     swag.request_body(schema={
@@ -342,10 +342,10 @@ def test_create_blog(swag):
     swag.validate(response.status_code, response.json())
 
 def test_delete_blog(swag):
-    swag.path("/blogs/{id}").delete("Delete a blog")
+    swag.path("/blogs/{id}").delete("블로그 삭제")
     swag.tag("Blogs")
     swag.parameter("id", in_="path", schema={"type": "integer"})
-    swag.response(204, description="Deleted")
+    swag.response(204, description="삭제됨")
 
     response = client.delete("/blogs/1")
     swag.validate(response.status_code, None)
@@ -353,20 +353,20 @@ def test_delete_blog(swag):
 
 ```bash
 pytest --swag
-# Generates docs/openapi.json and docs/openapi.yaml
+# docs/openapi.json과 docs/openapi.yaml이 생성됩니다
 ```
 
-### Requirements
+### 요구 사항
 
 - Python >= 3.10
 - pytest >= 7.0
 - jsonschema >= 4.0
-- PyYAML >= 6.0 (optional, for YAML output)
+- PyYAML >= 6.0 (선택, YAML 출력용)
 
-### Acknowledgments
+### 감사의 말
 
-pytest-swag is inspired by [rswag](https://github.com/rswag/rswag), the excellent Ruby/RSpec library for generating Swagger/OpenAPI documentation from integration tests. We are grateful to the rswag team for pioneering the "test-driven documentation" approach that bridges the gap between API testing and API documentation. pytest-swag brings this philosophy to the Python/pytest ecosystem.
+pytest-swag는 Ruby/RSpec 기반의 Swagger/OpenAPI 문서 자동 생성 라이브러리인 [rswag](https://github.com/rswag/rswag)에서 영감을 받았습니다. 테스트와 API 문서 사이의 간극을 잇는 "테스트 주도 문서화(test-driven documentation)" 접근법을 개척한 rswag 팀에 깊은 감사를 드립니다. pytest-swag는 이 철학을 Python/pytest 생태계로 가져옵니다.
 
-### License
+### 라이선스
 
 MIT
