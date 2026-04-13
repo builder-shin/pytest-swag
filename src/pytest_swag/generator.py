@@ -28,10 +28,23 @@ class SwagGenerator:
             servers=self._config.servers or None,
             security=self._config.security or None,
         )
+
+        has_jsonapi = any(
+            operation.get("x-jsonapi")
+            for methods in self._paths.values()
+            for operation in methods.values()
+        )
+
         doc["paths"] = self._convert_paths(self._paths)
+
         components: dict = {}
-        if self._component_schemas:
-            components["schemas"] = self._component_schemas
+        merged_schemas = dict(self._component_schemas)
+        if has_jsonapi:
+            from pytest_swag.adapters.jsonapi.schema import jsonapi_base_schemas
+
+            merged_schemas.update(jsonapi_base_schemas())
+        if merged_schemas:
+            components["schemas"] = merged_schemas
         if self._security_schemes:
             components["securitySchemes"] = self._security_schemes
         if components:
@@ -44,6 +57,7 @@ class SwagGenerator:
             converted[path] = {}
             for method, operation in methods.items():
                 op = dict(operation)
+                op.pop("x-jsonapi", None)
                 if "responses" in op:
                     op["responses"] = {str(code): resp for code, resp in op["responses"].items()}
                 converted[path][method] = op
