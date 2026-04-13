@@ -335,3 +335,45 @@ class TestQueryInToOperationDict:
         param_names = [p["name"] for p in op["parameters"]]
         assert "filter[status]" in param_names
         assert "filter[created_at][gte]" in param_names
+
+
+class TestJsonApiValidateCompound:
+    def test_sets_flag(self):
+        b = JsonApiSwagBuilder()
+        b.jsonapi_validate_compound()
+        assert b._jsonapi_validate_compound is True
+
+    def test_disable(self):
+        b = JsonApiSwagBuilder()
+        b.jsonapi_validate_compound(enabled=False)
+        assert b._jsonapi_validate_compound is False
+
+    def test_returns_self_for_chaining(self):
+        b = JsonApiSwagBuilder()
+        result = b.jsonapi_validate_compound()
+        assert result is b
+
+    def test_default_is_false(self):
+        b = JsonApiSwagBuilder()
+        assert b._jsonapi_validate_compound is False
+
+
+class TestJsonApiValidateVersion:
+    def test_sets_flag(self):
+        b = JsonApiSwagBuilder()
+        b.jsonapi_validate_version()
+        assert b._jsonapi_validate_version is True
+
+    def test_disable(self):
+        b = JsonApiSwagBuilder()
+        b.jsonapi_validate_version(enabled=False)
+        assert b._jsonapi_validate_version is False
+
+    def test_returns_self_for_chaining(self):
+        b = JsonApiSwagBuilder()
+        result = b.jsonapi_validate_version()
+        assert result is b
+
+    def test_default_is_false(self):
+        b = JsonApiSwagBuilder()
+        assert b._jsonapi_validate_version is False

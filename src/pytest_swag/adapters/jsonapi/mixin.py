@@ -103,6 +103,14 @@ class JsonApiMixin:
         self._jsonapi_query = query
         return self
 
+    def jsonapi_validate_compound(self, *, enabled: bool = True) -> Self:
+        self._jsonapi_validate_compound = enabled
+        return self
+
+    def jsonapi_validate_version(self, *, enabled: bool = True) -> Self:
+        self._jsonapi_validate_version = enabled
+        return self
+
     def jsonapi_response(
         self,
         status_code: int,
