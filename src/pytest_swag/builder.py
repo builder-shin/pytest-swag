@@ -61,19 +61,21 @@ class SwagBuilder:
         in_: str,
         schema: dict,
         required: bool | None = None,
+        value: object = None,
     ) -> SwagBuilder:
         if in_ == "path":
             required = True
         elif required is None:
             required = False
-        self._parameters.append(
-            {
-                "name": name,
-                "in": in_,
-                "required": required,
-                "schema": schema,
-            }
-        )
+        param = {
+            "name": name,
+            "in": in_,
+            "required": required,
+            "schema": schema,
+        }
+        if value is not None:
+            param["value"] = value
+        self._parameters.append(param)
         return self
 
     def request_body(
@@ -158,7 +160,9 @@ class SwagBuilder:
         if self._tags:
             op["tags"] = self._tags
         if self._parameters:
-            op["parameters"] = self._parameters
+            op["parameters"] = [
+                {k: v for k, v in p.items() if k != "value"} for p in self._parameters
+            ]
         if self._request_body:
             op["requestBody"] = self._request_body
         responses: dict[int, dict] = {}

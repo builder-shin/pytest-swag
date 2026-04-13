@@ -262,3 +262,27 @@ class TestCapture:
         validate_fn = _make_validate(b, {})
         with pytest.raises(SwagBuildError, match="Cannot mix capture"):
             validate_fn(200, {"id": 1})
+
+
+class TestParameterValue:
+    def test_parameter_with_value(self):
+        b = SwagBuilder()
+        b.parameter("id", in_="path", schema={"type": "string"}, value="42")
+        assert b._parameters[0]["value"] == "42"
+
+    def test_parameter_without_value(self):
+        b = SwagBuilder()
+        b.parameter("id", in_="path", schema={"type": "string"})
+        assert b._parameters[0].get("value") is None
+
+    def test_value_excluded_from_operation_dict(self):
+        b = SwagBuilder()
+        b.path("/blogs/{id}").get("Get blog")
+        b.parameter("id", in_="path", schema={"type": "string"}, value="42")
+        b.response(200, schema={"type": "object"})
+
+        op = b.to_operation_dict()
+        param = op["parameters"][0]
+        assert "value" not in param
+        assert param["name"] == "id"
+        assert param["in"] == "path"
