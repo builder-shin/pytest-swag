@@ -11,10 +11,7 @@ class SwagCollector:
         self._operations.append(operation)
 
     def get_operations(self, *, doc_target: str | None = None) -> list[dict]:
-        return [
-            op for op in self._operations
-            if op.get("doc_target") == doc_target
-        ]
+        return [op for op in self._operations if op.get("doc_target") == doc_target]
 
     def merge_to_paths(self, *, doc_target: str | None = None) -> dict:
         paths: dict = {}

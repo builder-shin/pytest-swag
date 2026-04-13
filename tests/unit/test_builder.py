@@ -1,4 +1,3 @@
-import pytest
 from pytest_swag.builder import SwagBuilder
 
 

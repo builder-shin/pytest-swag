@@ -6,7 +6,7 @@ from pytest_swag.builder import SwagBuilder
 from pytest_swag.collector import SwagCollector
 from pytest_swag.config import SwagConfig
 from pytest_swag.generator import SwagGenerator
-from pytest_swag.validator import SwagValidator, SwagValidationError
+from pytest_swag.validator import SwagValidator
 
 _swag_config_key = pytest.StashKey[dict | list[dict]]()
 _swag_schemas_key = pytest.StashKey[dict]()
@@ -16,11 +16,17 @@ _swag_collector_key = pytest.StashKey[SwagCollector]()
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     group = parser.getgroup("swag", "OpenAPI documentation generation")
-    group.addoption("--swag", action="store_true", default=False, help="Generate OpenAPI documentation")
+    group.addoption(
+        "--swag", action="store_true", default=False, help="Generate OpenAPI documentation"
+    )
     group.addoption("--swag-output", default=None, help="Override output path")
     group.addoption("--swag-no-output", action="store_true", default=False, help="Skip file output")
-    group.addoption("--swag-dry-run", action="store_true", default=False, help="Print OpenAPI doc to stdout")
-    group.addoption("--swag-strict", action="store_true", default=False, help="Warn on unvalidated tests")
+    group.addoption(
+        "--swag-dry-run", action="store_true", default=False, help="Print OpenAPI doc to stdout"
+    )
+    group.addoption(
+        "--swag-strict", action="store_true", default=False, help="Warn on unvalidated tests"
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -71,6 +77,7 @@ def swag(request, swag_schemas):
     if not builder._validated:
         if request.config.getoption("--swag-strict", default=False):
             import warnings
+
             warnings.warn(
                 f"Test {request.node.nodeid} uses swag fixture but never called validate()",
                 stacklevel=2,
@@ -99,6 +106,7 @@ def swag_requests(request, swag_schemas):
     if not builder._validated:
         if request.config.getoption("--swag-strict", default=False):
             import warnings
+
             warnings.warn(
                 f"Test {request.node.nodeid} uses swag_requests fixture but never called validate_response()",
                 stacklevel=2,

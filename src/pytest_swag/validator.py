@@ -48,7 +48,7 @@ class SwagValidator:
             ref = schema["$ref"]
             prefix = "#/components/schemas/"
             if ref.startswith(prefix):
-                name = ref[len(prefix):]
+                name = ref[len(prefix) :]
                 resolved = self._component_schemas.get(name)
                 if resolved is None:
                     raise SwagValidationError(

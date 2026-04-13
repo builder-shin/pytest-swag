@@ -13,12 +13,26 @@ class TestValidateResponse:
         return resp
 
     def test_valid_response(self):
-        responses = {200: {"description": "OK", "schema": {"type": "object", "properties": {"id": {"type": "integer"}}}}}
+        responses = {
+            200: {
+                "description": "OK",
+                "schema": {"type": "object", "properties": {"id": {"type": "integer"}}},
+            }
+        }
         resp = self._make_response(200, {"id": 1})
         validate_response(resp, responses=responses, path="/blogs", method="get")
 
     def test_invalid_response_raises(self):
-        responses = {200: {"description": "OK", "schema": {"type": "object", "required": ["id"], "properties": {"id": {"type": "integer"}}}}}
+        responses = {
+            200: {
+                "description": "OK",
+                "schema": {
+                    "type": "object",
+                    "required": ["id"],
+                    "properties": {"id": {"type": "integer"}},
+                },
+            }
+        }
         resp = self._make_response(200, {"id": "wrong"})
         with pytest.raises(SwagValidationError):
             validate_response(resp, responses=responses, path="/blogs", method="get")
@@ -49,7 +63,14 @@ class TestRequestsSwagBuilder:
     def test_validate_response_fails_on_wrong_schema(self):
         b = RequestsSwagBuilder()
         b.path("/blogs").get("List blogs")
-        b.response(200, schema={"type": "object", "required": ["id"], "properties": {"id": {"type": "integer"}}})
+        b.response(
+            200,
+            schema={
+                "type": "object",
+                "required": ["id"],
+                "properties": {"id": {"type": "integer"}},
+            },
+        )
         resp = self._make_response(200, {"id": "not_int"})
         with pytest.raises(SwagValidationError):
             b.validate_response(resp)

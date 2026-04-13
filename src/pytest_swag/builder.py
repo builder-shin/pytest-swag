@@ -61,12 +61,14 @@ class SwagBuilder:
             required = True
         elif required is None:
             required = False
-        self._parameters.append({
-            "name": name,
-            "in": in_,
-            "required": required,
-            "schema": schema,
-        })
+        self._parameters.append(
+            {
+                "name": name,
+                "in": in_,
+                "required": required,
+                "schema": schema,
+            }
+        )
         return self
 
     def request_body(

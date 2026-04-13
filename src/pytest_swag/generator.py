@@ -45,10 +45,7 @@ class SwagGenerator:
             for method, operation in methods.items():
                 op = dict(operation)
                 if "responses" in op:
-                    op["responses"] = {
-                        str(code): resp
-                        for code, resp in op["responses"].items()
-                    }
+                    op["responses"] = {str(code): resp for code, resp in op["responses"].items()}
                 converted[path][method] = op
         return converted
 
