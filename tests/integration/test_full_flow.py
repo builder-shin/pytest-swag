@@ -190,3 +190,59 @@ def test_requests_adapter_flow(pytester, tmp_path):
     assert output.exists()
     data = json.loads(output.read_text())
     assert "/blogs" in data["paths"]
+
+
+def test_capture_flow(pytester, tmp_path):
+    """capture() generates OpenAPI doc with inferred schema and example."""
+    output = tmp_path / "openapi.json"
+    pytester.makeconftest(f"""
+        import pytest
+
+        @pytest.fixture(scope="session")
+        def swag_config():
+            return {{
+                "output_path": "{output}",
+            }}
+    """)
+    pytester.makepyfile("""
+        def test_get_blog(swag):
+            swag.path("/blogs/{id}").get("Get a blog")
+            swag.parameter("id", in_="path", schema={"type": "string"})
+            swag.capture(200, {"id": 1, "title": "Hello"})
+
+        def test_delete_blog(swag):
+            swag.path("/blogs/{id}").delete("Delete a blog")
+            swag.parameter("id", in_="path", schema={"type": "string"})
+            swag.capture(204, None)
+
+        def test_capture_no_schema(swag):
+            swag.path("/health").get("Health check")
+            swag.capture(200, {"status": "ok"}, infer_schema=False)
+    """)
+    result = pytester.runpytest("--swag", "-v")
+    result.assert_outcomes(passed=3)
+
+    assert output.exists()
+    doc = json.loads(output.read_text())
+
+    # GET /blogs/{id} — inferred schema + example
+    get_200 = doc["paths"]["/blogs/{id}"]["get"]["responses"]["200"]
+    content = get_200["content"]["application/json"]
+    assert content["schema"] == {
+        "type": "object",
+        "properties": {
+            "id": {"type": "integer"},
+            "title": {"type": "string"},
+        },
+    }
+    assert content["example"] == {"id": 1, "title": "Hello"}
+
+    # DELETE /blogs/{id} — no content for 204
+    del_204 = doc["paths"]["/blogs/{id}"]["delete"]["responses"]["204"]
+    assert "content" not in del_204
+
+    # GET /health — example only, no schema
+    health_200 = doc["paths"]["/health"]["get"]["responses"]["200"]
+    health_content = health_200["content"]["application/json"]
+    assert "schema" not in health_content
+    assert health_content["example"] == {"status": "ok"}
