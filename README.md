@@ -276,6 +276,45 @@ def test_list_users(swag_requests):
     swag_requests.capture_response(response)    # capture for docs (schema auto-inferred)
 ```
 
+### `run_test()` — rswag-style Request + Capture
+
+Send HTTP requests directly from the builder and auto-capture (or validate) the response in one call. Similar to rswag's `run_test!`.
+
+```python
+# Provide a test client via fixture
+@pytest.fixture
+def swag_client():
+    return app.test_client()
+
+# Schema-free: capture only
+def test_get_blog(swag_requests):
+    swag_requests.path("/blogs/{id}").get("Get blog")
+    swag_requests.parameter("id", in_="path", schema={"type": "string"}, value="1")
+
+    response = swag_requests.run_test()       # sends GET /blogs/1, captures response
+    assert response.json()["title"] == "Hello"
+
+# With schema: validate + capture
+def test_get_blog_validated(swag_requests):
+    swag_requests.path("/blogs/{id}").get("Get blog")
+    swag_requests.parameter("id", in_="path", schema={"type": "string"}, value="1")
+    swag_requests.response(200, schema={
+        "type": "object",
+        "properties": {"id": {"type": "integer"}, "title": {"type": "string"}},
+    })
+
+    response = swag_requests.run_test()       # sends request, validates, captures
+    assert response.json()["title"] == "Hello"
+```
+
+Without `swag_client`, `run_test()` uses the `requests` library with `servers[0].url` from `swag_config`:
+
+```python
+@pytest.fixture(scope="session")
+def swag_config():
+    return {"servers": [{"url": "http://localhost:8000"}]}
+```
+
 ### Multi-Document Output
 
 Generate multiple OpenAPI documents from a single test suite using `swag.doc()`:

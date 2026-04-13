@@ -276,6 +276,45 @@ def test_list_users(swag_requests):
     swag_requests.capture_response(response)    # 문서용 캡처 (스키마 자동 추론)
 ```
 
+### `run_test()` — rswag 스타일 요청 + 캡처
+
+빌더에서 직접 HTTP 요청을 보내고 응답을 자동 캡처(또는 검증)합니다. rswag의 `run_test!`과 유사합니다.
+
+```python
+# 테스트 클라이언트를 fixture로 제공
+@pytest.fixture
+def swag_client():
+    return app.test_client()
+
+# 스키마 없이: 캡처만
+def test_get_blog(swag_requests):
+    swag_requests.path("/blogs/{id}").get("블로그 조회")
+    swag_requests.parameter("id", in_="path", schema={"type": "string"}, value="1")
+
+    response = swag_requests.run_test()       # GET /blogs/1 전송, 응답 캡처
+    assert response.json()["title"] == "Hello"
+
+# 스키마 있음: 검증 + 캡처
+def test_get_blog_validated(swag_requests):
+    swag_requests.path("/blogs/{id}").get("블로그 조회")
+    swag_requests.parameter("id", in_="path", schema={"type": "string"}, value="1")
+    swag_requests.response(200, schema={
+        "type": "object",
+        "properties": {"id": {"type": "integer"}, "title": {"type": "string"}},
+    })
+
+    response = swag_requests.run_test()       # 요청 전송, 검증, 캡처
+    assert response.json()["title"] == "Hello"
+```
+
+`swag_client` 없이 사용하면 `requests` 라이브러리와 `swag_config`의 `servers[0].url`을 사용합니다:
+
+```python
+@pytest.fixture(scope="session")
+def swag_config():
+    return {"servers": [{"url": "http://localhost:8000"}]}
+```
+
 ### 멀티 문서 출력
 
 `swag.doc()`을 사용하여 하나의 테스트 스위트에서 여러 OpenAPI 문서를 생성할 수 있습니다:
