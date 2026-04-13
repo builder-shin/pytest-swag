@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+
 import jsonschema
 
 
@@ -29,7 +31,7 @@ class SwagValidator:
         schema = self._responses[status_code].get("schema")
         if schema is None or body is None:
             return
-        resolved_schema = self._resolve_schema(schema)
+        resolved_schema = self._resolve_all_refs(schema)
         try:
             jsonschema.validate(instance=body, schema=resolved_schema)
         except jsonschema.ValidationError as e:
@@ -39,17 +41,30 @@ class SwagValidator:
                 f"Error: {e.message}"
             ) from None
 
-    def _resolve_schema(self, schema: dict) -> dict:
-        if "$ref" not in schema:
+    def _resolve_all_refs(self, schema: dict) -> dict:
+        if not isinstance(schema, dict):
             return schema
-        ref = schema["$ref"]
-        prefix = "#/components/schemas/"
-        if not ref.startswith(prefix):
+        if "$ref" in schema:
+            ref = schema["$ref"]
+            prefix = "#/components/schemas/"
+            if ref.startswith(prefix):
+                name = ref[len(prefix):]
+                resolved = self._component_schemas.get(name)
+                if resolved is None:
+                    raise SwagValidationError(
+                        f"Unresolved $ref: {ref} — schema '{name}' not found in component_schemas"
+                    )
+                return self._resolve_all_refs(copy.deepcopy(resolved))
             return schema
-        name = ref[len(prefix):]
-        resolved = self._component_schemas.get(name)
-        if resolved is None:
-            raise SwagValidationError(
-                f"Unresolved $ref: {ref} — schema '{name}' not found in component_schemas"
-            )
-        return resolved
+        result = {}
+        for key, value in schema.items():
+            if isinstance(value, dict):
+                result[key] = self._resolve_all_refs(value)
+            elif isinstance(value, list):
+                result[key] = [
+                    self._resolve_all_refs(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                result[key] = value
+        return result
