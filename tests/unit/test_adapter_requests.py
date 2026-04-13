@@ -90,3 +90,33 @@ class TestRequestsSwagBuilder:
         resp.headers = {}
         b.validate_response(resp)
         assert b._validated is True
+
+
+class TestAutoCapture:
+    def _make_response(self, status_code, json_data=None, content_type="application/json"):
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.json.return_value = json_data
+        resp.headers = {"Content-Type": content_type}
+        return resp
+
+    def test_validate_response_captures_body(self):
+        builder = RequestsSwagBuilder()
+        builder.path("/blogs").get("List blogs")
+        builder.response(200, schema={"type": "array", "items": {"type": "object"}})
+
+        resp = self._make_response(200, [{"id": 1}])
+        builder.validate_response(resp)
+
+        assert builder._responses[200].get("example") == [{"id": 1}]
+
+    def test_validate_response_captures_none_for_no_json(self):
+        builder = RequestsSwagBuilder()
+        builder.path("/blogs/{id}").delete("Delete blog")
+        builder.response(204, description="Deleted")
+
+        resp = self._make_response(204, content_type="text/plain")
+
+        builder.validate_response(resp)
+
+        assert builder._responses[204].get("example") is None

@@ -48,3 +48,5 @@ class RequestsSwagBuilder(SwagBuilder):
         )
         validator.validate(response.status_code, body)
         self._validated = True
+        if response.status_code in self._responses:
+            self._responses[response.status_code]["example"] = body
