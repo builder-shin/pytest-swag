@@ -3,6 +3,8 @@ from unittest.mock import MagicMock
 
 from pytest_swag.adapters.jsonapi.requests import JsonApiRequestsSwagBuilder
 from pytest_swag.adapters.jsonapi.resource import JsonApiResource, JsonApiRelationship
+from pytest_swag.adapters.jsonapi.query import JsonApiQuery
+from pytest_swag.adapters.jsonapi.validation import JsonApiValidationError
 
 
 class TestJsonApiRequestsSwagBuilder:
@@ -150,3 +152,146 @@ class TestJsonApiRequestsSwagBuilder:
         )
         assert result is resp
         assert b._validated is True
+
+
+class TestQueryIntegration:
+    def _make_response(self, status_code=200, json_data=None, content_type="application/vnd.api+json"):
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.json.return_value = json_data
+        resp.headers = {"Content-Type": content_type}
+        return resp
+
+    def _make_client(self, method, response):
+        client = MagicMock()
+        getattr(client, method).return_value = response
+        return client
+
+    def test_query_params_sent_in_request(self):
+        resp = self._make_response(200, {"data": []})
+        client = self._make_client("get", resp)
+
+        b = JsonApiRequestsSwagBuilder()
+        b.path("/articles").get()
+        b.jsonapi_include("author")
+        b.jsonapi_filter("status", "published")
+        b.jsonapi_page(number=1, size=10)
+
+        b.run_test(client=client)
+
+        call_kwargs = client.get.call_args[1]
+        params = call_kwargs["params"]
+        assert params["include"] == "author"
+        assert params["filter[status]"] == "published"
+        assert params["page[number]"] == "1"
+        assert params["page[size]"] == "10"
+
+    def test_query_object_sent_in_request(self):
+        resp = self._make_response(200, {"data": []})
+        client = self._make_client("get", resp)
+
+        q = JsonApiQuery(include=["author"], sort=["-created_at"])
+        b = JsonApiRequestsSwagBuilder()
+        b.path("/articles").get()
+        b.jsonapi_query(q)
+
+        b.run_test(client=client)
+
+        call_kwargs = client.get.call_args[1]
+        params = call_kwargs["params"]
+        assert params["include"] == "author"
+        assert params["sort"] == "-created_at"
+
+
+class TestValidationIntegration:
+    def _make_response(self, status_code=200, json_data=None, content_type="application/vnd.api+json"):
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.json.return_value = json_data
+        resp.headers = {"Content-Type": content_type}
+        return resp
+
+    def _make_client(self, method, response):
+        client = MagicMock()
+        getattr(client, method).return_value = response
+        return client
+
+    def test_compound_validation_passes(self):
+        body = {
+            "data": {
+                "type": "articles",
+                "id": "1",
+                "relationships": {
+                    "author": {"data": {"type": "people", "id": "5"}},
+                },
+            },
+            "included": [
+                {"type": "people", "id": "5", "attributes": {"name": "Bob"}},
+            ],
+        }
+        resp = self._make_response(200, body)
+        client = self._make_client("get", resp)
+
+        b = JsonApiRequestsSwagBuilder()
+        b.path("/articles/1").get()
+        b.jsonapi_validate_compound()
+        b.run_test(client=client)  # should not raise
+
+    def test_compound_validation_fails_on_orphan(self):
+        body = {
+            "data": {"type": "articles", "id": "1"},
+            "included": [
+                {"type": "people", "id": "5", "attributes": {"name": "Bob"}},
+            ],
+        }
+        resp = self._make_response(200, body)
+        client = self._make_client("get", resp)
+
+        b = JsonApiRequestsSwagBuilder()
+        b.path("/articles/1").get()
+        b.jsonapi_validate_compound()
+
+        with pytest.raises(JsonApiValidationError, match="orphan"):
+            b.run_test(client=client)
+
+    def test_version_validation_passes(self):
+        body = {
+            "data": {"type": "articles", "id": "1"},
+            "jsonapi": {"version": "1.1"},
+        }
+        resp = self._make_response(200, body)
+        client = self._make_client("get", resp)
+
+        b = JsonApiRequestsSwagBuilder()
+        b.path("/articles/1").get()
+        b.jsonapi_validate_version()
+        b.run_test(client=client)  # should not raise
+
+    def test_version_validation_fails(self):
+        body = {
+            "data": {"type": "articles", "id": "1"},
+            "jsonapi": "1.1",
+        }
+        resp = self._make_response(200, body)
+        client = self._make_client("get", resp)
+
+        b = JsonApiRequestsSwagBuilder()
+        b.path("/articles/1").get()
+        b.jsonapi_validate_version()
+
+        with pytest.raises(JsonApiValidationError):
+            b.run_test(client=client)
+
+    def test_no_validation_by_default(self):
+        body = {
+            "data": {"type": "articles", "id": "1"},
+            "included": [
+                {"type": "people", "id": "999"},
+            ],
+        }
+        resp = self._make_response(200, body)
+        client = self._make_client("get", resp)
+
+        b = JsonApiRequestsSwagBuilder()
+        b.path("/articles/1").get()
+        b.run_test(client=client)  # should not raise — validation off by default

@@ -44,6 +44,20 @@ class JsonApiRequestsSwagBuilder(JsonApiMixin, RequestsSwagBuilder):
     ) -> object:
         self._apply_jsonapi_headers()
 
+        # Register query params into self._parameters so RequestsSwagBuilder picks them up
+        if self._jsonapi_query is not None:
+            query_params = self._jsonapi_query.to_query_params()
+            for param_name, param_value in query_params.items():
+                is_page = param_name.startswith("page[")
+                schema_type = "integer" if is_page else "string"
+                self.parameter(
+                    param_name,
+                    in_="query",
+                    schema={"type": schema_type},
+                    value=param_value,
+                )
+            self._jsonapi_query = None  # prevent double-registration in to_operation_dict
+
         if self._jsonapi_body is not None and json is None:
             doc = JsonApiDocument(
                 data=self._jsonapi_body,
@@ -58,5 +72,21 @@ class JsonApiRequestsSwagBuilder(JsonApiMixin, RequestsSwagBuilder):
             assert JSONAPI_CONTENT_TYPE in actual, (
                 f"Expected Content-Type '{JSONAPI_CONTENT_TYPE}', got '{actual}'"
             )
+
+        # Run JSON:API validations
+        if self._jsonapi_validate_compound or self._jsonapi_validate_version:
+            from pytest_swag.adapters.jsonapi.validation import (
+                JsonApiResponseValidator,
+                JsonApiValidationError,
+            )
+
+            body = response.json()
+            errors: list[str] = []
+            if self._jsonapi_validate_compound:
+                errors.extend(JsonApiResponseValidator.validate_compound_document(body))
+            if self._jsonapi_validate_version:
+                errors.extend(JsonApiResponseValidator.validate_jsonapi_member(body))
+            if errors:
+                raise JsonApiValidationError(errors)
 
         return response
