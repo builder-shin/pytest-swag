@@ -1,4 +1,4 @@
-from pytest_swag.adapters.jsonapi.mixin import JsonApiMixin, JsonApiSwagBuilder
+from pytest_swag.adapters.jsonapi.mixin import JsonApiSwagBuilder
 from pytest_swag.adapters.jsonapi.resource import (
     JsonApiResource,
     JsonApiRelationship,
