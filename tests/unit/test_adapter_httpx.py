@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 
 from pytest_swag.adapters.httpx import HttpxSwagBuilder
 from pytest_swag.builder import SwagBuildError
-from pytest_swag.validator import SwagValidationError
 
 
 class TestHttpxSwagBuilder:

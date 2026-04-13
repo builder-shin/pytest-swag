@@ -1,4 +1,3 @@
-import pytest
 from pytest_swag.adapters.jsonapi.validation import (
     JsonApiResponseValidator,
     JsonApiValidationError,

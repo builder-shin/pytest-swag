@@ -2,8 +2,6 @@ import pytest
 from unittest.mock import MagicMock
 
 from pytest_swag.adapters.jsonapi.httpx import JsonApiHttpxSwagBuilder
-from pytest_swag.adapters.jsonapi.resource import JsonApiResource, JsonApiRelationship
-from pytest_swag.adapters.jsonapi.query import JsonApiQuery
 from pytest_swag.adapters.jsonapi.validation import JsonApiValidationError
 
 
