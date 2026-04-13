@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from pytest_swag.adapters.requests import validate_response, RequestsSwagBuilder
+from pytest_swag.builder import SwagBuildError
 from pytest_swag.validator import SwagValidationError
 
 
@@ -166,3 +167,132 @@ class TestCaptureResponse:
 
         assert builder._responses[204]["example"] is None
         assert builder._responses[204]["schema"] is None
+
+
+class TestRunTest:
+    def _make_client_response(self, status_code, json_data=None):
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.json.return_value = json_data
+        resp.headers = {"Content-Type": "application/json"}
+        return resp
+
+    def test_run_test_builds_url_with_path_params(self):
+        mock_client = MagicMock()
+        mock_resp = self._make_client_response(200, {"id": 1})
+        mock_client.get.return_value = mock_resp
+
+        b = RequestsSwagBuilder()
+        b.path("/blogs/{id}").get("Get blog")
+        b.parameter("id", in_="path", schema={"type": "string"}, value="42")
+
+        b.run_test(client=mock_client)
+        mock_client.get.assert_called_once()
+        call_url = mock_client.get.call_args[0][0]
+        assert call_url == "/blogs/42"
+
+    def test_run_test_appends_query_params(self):
+        mock_client = MagicMock()
+        mock_resp = self._make_client_response(200, [])
+        mock_client.get.return_value = mock_resp
+
+        b = RequestsSwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.parameter("page", in_="query", schema={"type": "integer"}, value=1)
+        b.parameter("limit", in_="query", schema={"type": "integer"}, value=10)
+
+        b.run_test(client=mock_client)
+        call_kwargs = mock_client.get.call_args[1]
+        assert call_kwargs["params"] == {"page": 1, "limit": 10}
+
+    def test_run_test_sets_headers(self):
+        mock_client = MagicMock()
+        mock_resp = self._make_client_response(200, {})
+        mock_client.get.return_value = mock_resp
+
+        b = RequestsSwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.parameter("X-Api-Key", in_="header", schema={"type": "string"}, value="secret")
+
+        b.run_test(client=mock_client)
+        call_kwargs = mock_client.get.call_args[1]
+        assert call_kwargs["headers"] == {"X-Api-Key": "secret"}
+
+    def test_run_test_sends_request_body(self):
+        mock_client = MagicMock()
+        mock_resp = self._make_client_response(201, {"id": 1, "title": "New"})
+        mock_client.post.return_value = mock_resp
+
+        b = RequestsSwagBuilder()
+        b.path("/blogs").post("Create blog")
+        b.request_body(schema={"type": "object", "properties": {"title": {"type": "string"}}})
+
+        b.run_test(client=mock_client, json={"title": "New"})
+        call_kwargs = mock_client.post.call_args[1]
+        assert call_kwargs["json"] == {"title": "New"}
+
+    def test_run_test_captures_when_no_schema(self):
+        mock_client = MagicMock()
+        mock_resp = self._make_client_response(200, {"id": 1})
+        mock_client.get.return_value = mock_resp
+
+        b = RequestsSwagBuilder()
+        b.path("/blogs").get("List blogs")
+
+        result = b.run_test(client=mock_client)
+        assert result is mock_resp
+        assert b._captured is True
+        assert b._responses[200]["example"] == {"id": 1}
+
+    def test_run_test_validates_when_schema_declared(self):
+        mock_client = MagicMock()
+        mock_resp = self._make_client_response(200, {"id": 1})
+        mock_client.get.return_value = mock_resp
+
+        b = RequestsSwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.response(200, schema={"type": "object", "properties": {"id": {"type": "integer"}}})
+
+        result = b.run_test(client=mock_client)
+        assert result is mock_resp
+        assert b._validated is True
+        assert b._responses[200].get("example") == {"id": 1}
+
+    def test_run_test_with_base_url(self):
+        mock_client = MagicMock()
+        mock_resp = self._make_client_response(200, {})
+        mock_client.get.return_value = mock_resp
+
+        b = RequestsSwagBuilder()
+        b.path("/blogs").get("List blogs")
+
+        b.run_test(client=mock_client, base_url="http://localhost:8000")
+        call_url = mock_client.get.call_args[0][0]
+        assert call_url == "http://localhost:8000/blogs"
+
+    def test_run_test_no_client_raises(self):
+        b = RequestsSwagBuilder()
+        b.path("/blogs").get("List blogs")
+
+        with pytest.raises(SwagBuildError, match="No HTTP client available"):
+            b.run_test()
+
+    def test_run_test_missing_path_param_value_raises(self):
+        mock_client = MagicMock()
+        b = RequestsSwagBuilder()
+        b.path("/blogs/{id}").get("Get blog")
+        b.parameter("id", in_="path", schema={"type": "string"})
+
+        with pytest.raises(SwagBuildError, match="requires a value"):
+            b.run_test(client=mock_client)
+
+    def test_run_test_returns_response(self):
+        mock_client = MagicMock()
+        mock_resp = self._make_client_response(200, {"id": 1})
+        mock_client.get.return_value = mock_resp
+
+        b = RequestsSwagBuilder()
+        b.path("/blogs").get("List blogs")
+
+        result = b.run_test(client=mock_client)
+        assert result is mock_resp

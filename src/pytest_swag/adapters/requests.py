@@ -33,6 +33,68 @@ def validate_response(
 
 
 class RequestsSwagBuilder(SwagBuilder):
+    def __init__(self) -> None:
+        super().__init__()
+        self._client: object | None = None
+        self._base_url: str | None = None
+
+    def run_test(
+        self,
+        *,
+        client: object | None = None,
+        base_url: str | None = None,
+        json: object = None,
+    ) -> object:
+        from pytest_swag.builder import SwagBuildError
+
+        resolved_client = client or self._client
+        if resolved_client is None:
+            raise SwagBuildError(
+                "No HTTP client available. "
+                "Provide swag_client fixture or configure servers in swag_config."
+            )
+
+        # Build URL
+        url = self._path
+        params = {}
+        headers = {}
+
+        for param in self._parameters:
+            if param["in"] == "path":
+                if param.get("value") is None:
+                    raise SwagBuildError(
+                        f"Parameter '{param['name']}' requires a value for run_test()"
+                    )
+                url = url.replace("{" + param["name"] + "}", str(param["value"]))
+            elif param["in"] == "query" and param.get("value") is not None:
+                params[param["name"]] = param["value"]
+            elif param["in"] == "header" and param.get("value") is not None:
+                headers[param["name"]] = param["value"]
+
+        resolved_base = base_url or self._base_url or ""
+        full_url = resolved_base + url
+
+        # Build request kwargs
+        kwargs: dict = {}
+        if params:
+            kwargs["params"] = params
+        if headers:
+            kwargs["headers"] = headers
+        if json is not None:
+            kwargs["json"] = json
+
+        # Send request
+        method_fn = getattr(resolved_client, self._method)
+        response = method_fn(full_url, **kwargs)
+
+        # Capture or validate
+        if self._responses:
+            self.validate_response(response)
+        else:
+            self.capture_response(response)
+
+        return response
+
     def validate_response(
         self,
         response: object,
