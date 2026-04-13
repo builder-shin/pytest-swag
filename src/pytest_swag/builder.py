@@ -3,6 +3,10 @@ from __future__ import annotations
 from http import HTTPStatus
 
 
+class SwagBuildError(Exception):
+    pass
+
+
 class _PathProxy:
     def __init__(self, builder: SwagBuilder, path: str) -> None:
         self._builder = builder
@@ -41,6 +45,7 @@ class SwagBuilder:
         self._security: list[dict] | None = None
         self._doc_target: str | None = None
         self._validated: bool = False
+        self._captured: bool = False
 
     def path(self, path: str) -> _PathProxy:
         return _PathProxy(self, path)
@@ -100,6 +105,37 @@ class SwagBuilder:
             "description": description,
             "schema": schema,
         }
+        return self
+
+    def capture(
+        self,
+        status_code: int,
+        body: object = None,
+        *,
+        description: str | None = None,
+        infer_schema: bool = True,
+    ) -> SwagBuilder:
+        if self._validated and not self._captured:
+            raise SwagBuildError(
+                "Cannot mix capture() and validate() in the same test"
+            )
+        if description is None:
+            try:
+                description = HTTPStatus(status_code).phrase
+            except ValueError:
+                description = ""
+        schema = None
+        if body is not None and infer_schema:
+            from pytest_swag.infer import infer_schema as _infer
+
+            schema = _infer(body)
+        self._responses[status_code] = {
+            "description": description,
+            "schema": schema,
+            "example": body,
+        }
+        self._validated = True
+        self._captured = True
         return self
 
     def security(self, scheme: str | None) -> SwagBuilder:

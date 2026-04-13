@@ -1,4 +1,5 @@
-from pytest_swag.builder import SwagBuilder
+import pytest
+from pytest_swag.builder import SwagBuilder, SwagBuildError
 
 
 class TestPath:
@@ -155,3 +156,67 @@ class TestToOperationDict:
         assert "requestBody" in op
         assert 201 in op["responses"]
         assert op["security"] == [{"BearerAuth": []}]
+
+
+class TestCapture:
+    def test_capture_stores_response_with_inferred_schema(self):
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.capture(200, {"id": 1, "title": "Hello"})
+        assert 200 in b._responses
+        assert b._responses[200]["schema"] == {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "title": {"type": "string"},
+            },
+        }
+        assert b._responses[200]["example"] == {"id": 1, "title": "Hello"}
+        assert b._validated is True
+
+    def test_capture_without_schema_inference(self):
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.capture(200, {"id": 1}, infer_schema=False)
+        assert b._responses[200]["schema"] is None
+        assert b._responses[200]["example"] == {"id": 1}
+
+    def test_capture_custom_description(self):
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.capture(200, [], description="Blog list")
+        assert b._responses[200]["description"] == "Blog list"
+
+    def test_capture_default_description(self):
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.capture(200, [])
+        assert b._responses[200]["description"] == "OK"
+
+    def test_capture_none_body(self):
+        b = SwagBuilder()
+        b.path("/blogs/{id}").delete("Delete blog")
+        b.capture(204, None)
+        assert b._responses[204]["schema"] is None
+        assert b._responses[204]["example"] is None
+
+    def test_capture_sets_validated(self):
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b.capture(200, {"id": 1})
+        assert b._validated is True
+
+    def test_capture_after_validate_raises(self):
+        b = SwagBuilder()
+        b.path("/blogs").get("List blogs")
+        b._validated = True
+        with pytest.raises(SwagBuildError, match="Cannot mix capture"):
+            b.capture(200, {"id": 1})
+
+    def test_capture_multiple_status_codes(self):
+        b = SwagBuilder()
+        b.path("/blogs/{id}").get("Get blog")
+        b.capture(200, {"id": 1})
+        b.capture(404, {"message": "Not found"})
+        assert 200 in b._responses
+        assert 404 in b._responses
