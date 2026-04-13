@@ -163,6 +163,30 @@ swag.validate(response.status_code, response.json())
 # 2. 응답 본문이 선언된 스키마와 일치하는지 (jsonschema)
 ```
 
+#### 캡처 (스키마 없이)
+
+스키마를 미리 정의하지 않고 실제 API 응답을 문서에 기록합니다.
+응답 본문에서 스키마가 자동으로 추론됩니다.
+
+```python
+def test_get_blog(swag):
+    swag.path("/blogs/{id}").get("블로그 조회")
+    swag.parameter("id", in_="path", schema={"type": "string"})
+
+    response = client.get("/blogs/1")
+    assert response.status_code == 200       # pytest로 직접 검증
+    assert "title" in response.json()
+
+    swag.capture(200, response.json())       # 문서용 캡처
+
+# 스키마 추론 비활성화 (example만 저장)
+    swag.capture(200, response.json(), infer_schema=False)
+```
+
+`swag_requests` fixture는 `validate_response()` 호출 시 자동으로 캡처합니다.
+
+> **참고:** `capture()`와 `validate()`를 같은 테스트에서 함께 사용할 수 없습니다.
+
 ### 컴포넌트 스키마 (`$ref` 지원)
 
 `swag_schemas` fixture로 재사용 가능한 스키마를 정의합니다:

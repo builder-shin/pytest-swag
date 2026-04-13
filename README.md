@@ -163,6 +163,30 @@ swag.validate(response.status_code, response.json())
 # 2. Response body matches the declared schema (via jsonschema)
 ```
 
+#### Capture (Schema-Free)
+
+Record actual API responses for documentation without defining schemas upfront.
+Schemas are automatically inferred from the response body.
+
+```python
+def test_get_blog(swag):
+    swag.path("/blogs/{id}").get("Get blog")
+    swag.parameter("id", in_="path", schema={"type": "string"})
+
+    response = client.get("/blogs/1")
+    assert response.status_code == 200       # validate with pytest
+    assert "title" in response.json()
+
+    swag.capture(200, response.json())       # capture for docs
+
+# Disable schema inference (example only)
+    swag.capture(200, response.json(), infer_schema=False)
+```
+
+The `swag_requests` fixture auto-captures on `validate_response()`.
+
+> **Note:** `capture()` and `validate()` cannot be used in the same test.
+
 ### Component Schemas (`$ref` Support)
 
 Define reusable schemas via the `swag_schemas` fixture:
