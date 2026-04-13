@@ -246,3 +246,40 @@ def test_capture_flow(pytester, tmp_path):
     health_content = health_200["content"]["application/json"]
     assert "schema" not in health_content
     assert health_content["example"] == {"status": "ok"}
+
+
+def test_requests_capture_response_flow(pytester, tmp_path):
+    """swag_requests.capture_response() auto-captures without schema."""
+    output = tmp_path / "openapi.json"
+    pytester.makeconftest(f"""
+        import pytest
+
+        @pytest.fixture(scope="session")
+        def swag_config():
+            return {{
+                "output_path": "{output}",
+            }}
+    """)
+    pytester.makepyfile("""
+        from unittest.mock import MagicMock
+
+        def _mock_response(status_code, json_data):
+            resp = MagicMock()
+            resp.status_code = status_code
+            resp.json.return_value = json_data
+            resp.headers = {"Content-Type": "application/json"}
+            return resp
+
+        def test_capture_blog(swag_requests):
+            swag_requests.path("/blogs").get("List blogs")
+            resp = _mock_response(200, [{"id": 1, "title": "Hello"}])
+            swag_requests.capture_response(resp)
+    """)
+    result = pytester.runpytest("--swag", "-v")
+    result.assert_outcomes(passed=1)
+
+    assert output.exists()
+    doc = json.loads(output.read_text())
+    content = doc["paths"]["/blogs"]["get"]["responses"]["200"]["content"]["application/json"]
+    assert "schema" in content
+    assert content["example"] == [{"id": 1, "title": "Hello"}]

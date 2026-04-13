@@ -50,3 +50,12 @@ class RequestsSwagBuilder(SwagBuilder):
         self._validated = True
         if response.status_code in self._responses:
             self._responses[response.status_code]["example"] = body
+
+    def capture_response(
+        self,
+        response: object,
+        *,
+        infer_schema: bool = True,
+    ) -> None:
+        body = _extract_body(response)
+        self.capture(response.status_code, body, infer_schema=infer_schema)

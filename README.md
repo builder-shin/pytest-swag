@@ -264,6 +264,18 @@ def test_list_users(swag_requests):
     # Automatically extracts status_code and JSON body from the response object
 ```
 
+For schema-free capture without validation:
+
+```python
+def test_list_users(swag_requests):
+    swag_requests.path("/users").get("List users")
+
+    response = requests.get("http://localhost:8000/users")
+    assert response.status_code == 200          # validate with pytest
+
+    swag_requests.capture_response(response)    # capture for docs (schema auto-inferred)
+```
+
 ### Multi-Document Output
 
 Generate multiple OpenAPI documents from a single test suite using `swag.doc()`:

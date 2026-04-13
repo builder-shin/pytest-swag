@@ -120,3 +120,49 @@ class TestAutoCapture:
         builder.validate_response(resp)
 
         assert builder._responses[204].get("example") is None
+
+
+class TestCaptureResponse:
+    def _make_response(self, status_code, json_data=None, content_type="application/json"):
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.json.return_value = json_data
+        resp.headers = {"Content-Type": content_type}
+        return resp
+
+    def test_capture_response_infers_schema(self):
+        builder = RequestsSwagBuilder()
+        builder.path("/blogs").get("List blogs")
+        resp = self._make_response(200, [{"id": 1, "title": "Hello"}])
+        builder.capture_response(resp)
+
+        assert builder._validated is True
+        assert builder._responses[200]["example"] == [{"id": 1, "title": "Hello"}]
+        assert builder._responses[200]["schema"] == {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "title": {"type": "string"},
+                },
+            },
+        }
+
+    def test_capture_response_without_inference(self):
+        builder = RequestsSwagBuilder()
+        builder.path("/blogs").get("List blogs")
+        resp = self._make_response(200, {"id": 1})
+        builder.capture_response(resp, infer_schema=False)
+
+        assert builder._responses[200]["schema"] is None
+        assert builder._responses[200]["example"] == {"id": 1}
+
+    def test_capture_response_no_json_body(self):
+        builder = RequestsSwagBuilder()
+        builder.path("/blogs/{id}").delete("Delete blog")
+        resp = self._make_response(204, content_type="text/plain")
+        builder.capture_response(resp)
+
+        assert builder._responses[204]["example"] is None
+        assert builder._responses[204]["schema"] is None

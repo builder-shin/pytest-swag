@@ -264,6 +264,18 @@ def test_list_users(swag_requests):
     # response 객체에서 status_code와 JSON 본문을 자동으로 추출합니다
 ```
 
+스키마 없이 캡처만 하려면:
+
+```python
+def test_list_users(swag_requests):
+    swag_requests.path("/users").get("사용자 목록")
+
+    response = requests.get("http://localhost:8000/users")
+    assert response.status_code == 200          # pytest로 직접 검증
+
+    swag_requests.capture_response(response)    # 문서용 캡처 (스키마 자동 추론)
+```
+
 ### 멀티 문서 출력
 
 `swag.doc()`을 사용하여 하나의 테스트 스위트에서 여러 OpenAPI 문서를 생성할 수 있습니다:
