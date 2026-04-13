@@ -95,11 +95,34 @@ def swag(request, swag_schemas):
 
 
 @pytest.fixture
-def swag_requests(request, swag_schemas):
+def swag_client():
+    return None
+
+
+@pytest.fixture
+def swag_requests(request, swag_config, swag_schemas, swag_client):
     from pytest_swag.adapters.requests import RequestsSwagBuilder
 
     builder = RequestsSwagBuilder()
     builder.validate = _make_validate(builder, swag_schemas)
+
+    # Inject client
+    if swag_client is not None:
+        builder._client = swag_client
+    else:
+        try:
+            import requests as _requests_lib
+
+            builder._client = _requests_lib
+        except ImportError:
+            pass
+
+    # Inject base URL from config
+    raw_config = swag_config if isinstance(swag_config, dict) else {}
+    servers = raw_config.get("servers", [])
+    if servers:
+        builder._base_url = servers[0].get("url", "")
+
     original_validate_response = builder.validate_response
 
     def _validate_response(response, *, component_schemas=None):

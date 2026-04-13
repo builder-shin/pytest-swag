@@ -283,3 +283,129 @@ def test_requests_capture_response_flow(pytester, tmp_path):
     content = doc["paths"]["/blogs"]["get"]["responses"]["200"]["content"]["application/json"]
     assert "schema" in content
     assert content["example"] == [{"id": 1, "title": "Hello"}]
+
+
+def test_run_test_flow(pytester, tmp_path):
+    """run_test() sends request via client and generates OpenAPI doc."""
+    output = tmp_path / "openapi.json"
+    pytester.makeconftest(f"""
+        import pytest
+        from unittest.mock import MagicMock
+
+        @pytest.fixture(scope="session")
+        def swag_config():
+            return {{
+                "output_path": "{output}",
+            }}
+
+        @pytest.fixture
+        def swag_client():
+            client = MagicMock()
+            def make_response(url, **kwargs):
+                resp = MagicMock()
+                resp.status_code = 200
+                resp.json.return_value = {{"id": 1, "title": "Hello"}}
+                resp.headers = {{"Content-Type": "application/json"}}
+                return resp
+            client.get = make_response
+            return client
+    """)
+    pytester.makepyfile("""
+        def test_get_blog(swag_requests):
+            swag_requests.path("/blogs/{id}").get("Get a blog")
+            swag_requests.parameter("id", in_="path", schema={"type": "string"}, value="1")
+
+            response = swag_requests.run_test()
+            assert response.status_code == 200
+            assert response.json() == {"id": 1, "title": "Hello"}
+    """)
+    result = pytester.runpytest("--swag", "-v")
+    result.assert_outcomes(passed=1)
+
+    assert output.exists()
+    doc = json.loads(output.read_text())
+
+    get_op = doc["paths"]["/blogs/{id}"]["get"]
+    assert get_op["summary"] == "Get a blog"
+    resp_200 = get_op["responses"]["200"]
+    content = resp_200["content"]["application/json"]
+    assert "schema" in content
+    assert content["example"] == {"id": 1, "title": "Hello"}
+
+
+def test_run_test_with_schema_validation(pytester, tmp_path):
+    """run_test() validates against declared schema and captures."""
+    output = tmp_path / "openapi.json"
+    pytester.makeconftest(f"""
+        import pytest
+        from unittest.mock import MagicMock
+
+        @pytest.fixture(scope="session")
+        def swag_config():
+            return {{
+                "output_path": "{output}",
+            }}
+
+        @pytest.fixture
+        def swag_client():
+            client = MagicMock()
+            def make_response(url, **kwargs):
+                resp = MagicMock()
+                resp.status_code = 200
+                resp.json.return_value = {{"id": 1, "title": "Hello"}}
+                resp.headers = {{"Content-Type": "application/json"}}
+                return resp
+            client.get = make_response
+            return client
+    """)
+    pytester.makepyfile("""
+        def test_get_blog(swag_requests):
+            swag_requests.path("/blogs").get("List blogs")
+            swag_requests.response(200, schema={
+                "type": "object",
+                "properties": {"id": {"type": "integer"}, "title": {"type": "string"}},
+            })
+
+            response = swag_requests.run_test()
+            assert response.json()["id"] == 1
+    """)
+    result = pytester.runpytest("--swag", "-v")
+    result.assert_outcomes(passed=1)
+
+    doc = json.loads(output.read_text())
+    resp_200 = doc["paths"]["/blogs"]["get"]["responses"]["200"]
+    assert resp_200["content"]["application/json"].get("example") == {"id": 1, "title": "Hello"}
+
+
+def test_run_test_with_base_url_fallback(pytester, tmp_path):
+    """run_test() uses servers URL when no swag_client fixture."""
+    output = tmp_path / "openapi.json"
+    pytester.makeconftest(f"""
+        import pytest
+
+        @pytest.fixture(scope="session")
+        def swag_config():
+            return {{
+                "output_path": "{output}",
+                "servers": [{{"url": "http://testserver"}}],
+            }}
+    """)
+    pytester.makepyfile("""
+        from unittest.mock import MagicMock, patch
+
+        def test_get_blog(swag_requests):
+            swag_requests.path("/blogs").get("List blogs")
+
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = [{"id": 1}]
+            mock_resp.headers = {"Content-Type": "application/json"}
+
+            with patch("requests.get", return_value=mock_resp) as mock_get:
+                response = swag_requests.run_test()
+                mock_get.assert_called_once()
+                call_url = mock_get.call_args[0][0]
+                assert call_url == "http://testserver/blogs"
+    """)
+    result = pytester.runpytest("--swag", "-v")
+    result.assert_outcomes(passed=1)
