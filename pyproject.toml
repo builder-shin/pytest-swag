@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytest-swag"
-version = "0.2.0"
+version = "0.3.0"
 description = "Generate OpenAPI documentation from pytest tests"
 readme = "README.md"
 license = "MIT"
